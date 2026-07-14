@@ -15,9 +15,6 @@ import javax.annotation.Resource;
  * <p>
  * 前端控制器
  * </p>
- *
- * @author 虎哥
- * @since 2021-12-22
  */
 @RestController
 @RequestMapping("/shop")
@@ -33,7 +30,6 @@ public class ShopController {
      */
     @GetMapping("/{id}")
     public Result queryShopById(@PathVariable("id") Long id) {
-        // 之前是直接用数据库查的return Result.ok(shopService.getById(id));
         return shopService.queryById(id);
     }
 
@@ -44,9 +40,7 @@ public class ShopController {
      */
     @PostMapping
     public Result saveShop(@RequestBody Shop shop) {
-        // 写入数据库
         shopService.save(shop);
-        // 返回店铺id
         return Result.ok(shop.getId());
     }
 
@@ -57,31 +51,25 @@ public class ShopController {
      */
     @PutMapping
     public Result updateShop(@RequestBody Shop shop) {
-        /*
-        // 写入数据库
-        shopService.updateById(shop);
-        return Result.ok();
-        */
         return shopService.update(shop);
     }
 
     /**
-     * 根据商铺类型分页查询商铺信息
+     * 根据商铺类型分页查询商铺信息；传入 x/y 时按当前位置查询附近商铺。
      * @param typeId 商铺类型
      * @param current 页码
+     * @param x 用户当前位置经度
+     * @param y 用户当前位置纬度
      * @return 商铺列表
      */
     @GetMapping("/of/type")
     public Result queryShopByType(
             @RequestParam("typeId") Integer typeId,
-            @RequestParam(value = "current", defaultValue = "1") Integer current
+            @RequestParam(value = "current", defaultValue = "1") Integer current,
+            @RequestParam(value = "x", required = false) Double x,
+            @RequestParam(value = "y", required = false) Double y
     ) {
-        // 根据类型分页查询
-        Page<Shop> page = shopService.query()
-                .eq("type_id", typeId)
-                .page(new Page<>(current, SystemConstants.DEFAULT_PAGE_SIZE));
-        // 返回数据
-        return Result.ok(page.getRecords());
+        return shopService.queryShopByType(typeId, current, x, y);
     }
 
     /**
@@ -95,11 +83,9 @@ public class ShopController {
             @RequestParam(value = "name", required = false) String name,
             @RequestParam(value = "current", defaultValue = "1") Integer current
     ) {
-        // 根据类型分页查询
         Page<Shop> page = shopService.query()
                 .like(StrUtil.isNotBlank(name), "name", name)
                 .page(new Page<>(current, SystemConstants.MAX_PAGE_SIZE));
-        // 返回数据
         return Result.ok(page.getRecords());
     }
 }

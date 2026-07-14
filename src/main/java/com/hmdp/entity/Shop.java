@@ -13,12 +13,10 @@ import java.time.LocalDateTime;
 
 /**
  * <p>
- * 
+ * 商铺/POI 信息
  * </p>
- *
- * @author 虎哥
- * @since 2021-12-22
  */
+
 @Data
 @EqualsAndHashCode(callSuper = false)
 @Accessors(chain = true)
@@ -39,7 +37,7 @@ public class Shop implements Serializable {
     private String name;
 
     /**
-     * 商铺类型的id
+     * 商铺类型id
      */
     private Long typeId;
 
@@ -49,9 +47,14 @@ public class Shop implements Serializable {
     private String images;
 
     /**
-     * 商圈，例如陆家嘴
+     * 商圈
      */
     private String area;
+
+    /**
+     * 城市
+     */
+    private String city;
 
     /**
      * 地址
@@ -59,12 +62,22 @@ public class Shop implements Serializable {
     private String address;
 
     /**
+     * 电话
+     */
+    private String phone;
+
+    /**
+     * 外部 POI id，例如高德 POI id
+     */
+    private String poiId;
+
+    /**
      * 经度
      */
     private Double x;
 
     /**
-     * 维度
+     * 纬度
      */
     private Double y;
 
@@ -84,12 +97,12 @@ public class Shop implements Serializable {
     private Integer comments;
 
     /**
-     * 评分，1~5分，乘10保存，避免小数
+     * 评分，1~5分，乘10保存
      */
     private Integer score;
 
     /**
-     * 营业时间，例如 10:00-22:00
+     * 营业时间
      */
     private String openHours;
 
@@ -102,7 +115,6 @@ public class Shop implements Serializable {
      * 更新时间
      */
     private LocalDateTime updateTime;
-
 
     @TableField(exist = false)
     private Double distance;
