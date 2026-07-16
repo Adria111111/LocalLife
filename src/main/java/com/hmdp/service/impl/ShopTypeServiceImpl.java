@@ -20,6 +20,7 @@ import static com.hmdp.utils.RedisConstants.*;
 /**
  * <p>
  *  服务实现类
+ *  查询店铺分类列表，用 Redis List 做缓存优化，减少数据库查询压力。
  * </p>
  */
 @Service
@@ -29,9 +30,9 @@ public class ShopTypeServiceImpl extends ServiceImpl<ShopTypeMapper, ShopType> i
     private StringRedisTemplate stringRedisTemplate;
     @Override
     public Result queryTypeList() {
-        // Redis存储内容，无论什么结构，最终存进去的内容本质都是：String或者Byte[]，只不过形式结构可能是hash或者list等
+        // Redis 是键值数据库，key 永远是字符串；value 支持多种数据结构：String、List、Set、Hash（filed-value）、ZSet
 
-        // 1.从redis查商铺类型缓存（这用list尝试实践一下）
+        // 1.从redis查商铺类型缓存（用list实践）
         List<String> shopTypeListJson = stringRedisTemplate.opsForList().range(CACHE_SHOP_TYPE_KEY, 0, -1); // 查整张表
         // 2.判断是否存在
         if (CollUtil.isNotEmpty(shopTypeListJson)) {
@@ -57,7 +58,6 @@ public class ShopTypeServiceImpl extends ServiceImpl<ShopTypeMapper, ShopType> i
         stringRedisTemplate.opsForList().rightPushAll(CACHE_SHOP_TYPE_KEY, jsonStrList);
         // 单独设置key过期时间
         stringRedisTemplate.expire(CACHE_SHOP_TYPE_KEY, CACHE_SHOP_TYPE_TTL, TimeUnit.MINUTES);
-
         // 7.返回结果
         return Result.ok(shopTypeList);
     }

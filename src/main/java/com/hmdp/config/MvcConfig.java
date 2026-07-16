@@ -9,6 +9,15 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 import javax.annotation.Resource;
 
+/**
+ * SpringMVC 全局扩展配置类，实现WebMvcConfigurer接口，可自定义多项Web功能（管 Web 请求流程）：
+ * 1. addInterceptors：注册请求拦截器（已实现），做登录校验、Token自动续期
+ * 2. 可拓展：跨域配置、静态资源映射、JSON序列化、参数转换器、页面跳转等
+ * 当前业务仅实现拦截器注册：
+ *    RefreshTokenInterceptor(order=0)：所有请求刷新Token过期时间，无感续登
+ *    LoginInterceptor(order=1)：校验登录状态，未登录拦截接口
+ */
+
 @Configuration
 public class MvcConfig implements WebMvcConfigurer {
 

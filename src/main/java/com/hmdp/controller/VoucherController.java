@@ -10,12 +10,10 @@ import javax.annotation.Resource;
 
 /**
  * <p>
- *  前端控制器
+ * 接口控制器 / 请求控制器
  * </p>
- *
- * @author 虎哥
- * @since 2021-12-22
  */
+
 @RestController
 @RequestMapping("/voucher")
 public class VoucherController {

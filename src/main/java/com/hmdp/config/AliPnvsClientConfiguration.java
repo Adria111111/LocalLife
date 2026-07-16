@@ -6,6 +6,10 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.util.StringUtils;
 
+/**
+ * Spring 配置工厂类，拿实体里的账号信息，创建阿里云短信 SDK 客户端（对象生产器）
+ * 创建阿里云 SDK 的 Client 客户端，交给 Spring 容器管理，供业务注入使用，不管理签名、模板、有效期这类业务参数
+ */
 @Configuration
 public class AliPnvsClientConfiguration {
 

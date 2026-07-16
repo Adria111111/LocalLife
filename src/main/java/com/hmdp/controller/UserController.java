@@ -15,12 +15,11 @@ import javax.servlet.http.HttpSession;
 
 /**
  * <p>
- * 前端控制器
+ * 接口控制器 / 请求控制器
+ * 接收前端传过来的参数，调用业务层 Service 干活，自己不写复杂逻辑
  * </p>
- *
- * @author 虎哥
- * @since 2021-12-22
  */
+
 @Slf4j
 @RestController
 @RequestMapping("/user")

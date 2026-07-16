@@ -37,20 +37,20 @@ import static com.hmdp.utils.SystemConstants.USER_NICK_NAME_PREFIX;
 public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IUserService {
 
     @Autowired
-    private AliPnvsConfig aliPnvsConfig;
+    private AliPnvsConfig aliPnvsConfig; // 阿里云短信配置（签名、模板、有效期、限流时间）
 
     @Autowired
-    private Client dypnsClient;
+    private Client dypnsClient; // 阿里云短信SDK客户端，调用发送验证码接口
 
     @Autowired
-    private StringRedisTemplate stringRedisTemplate;
+    private StringRedisTemplate stringRedisTemplate; // Redis模板，用于缓存短信验证码和登录用户信息
 
     @Override
     public Result sendCode(String phone, HttpSession session) {
         if (RegexUtils.isPhoneInvalid(phone)) {
             return Result.fail("手机号格式错误！");
         }
-
+        // Redis 限流防刷
         Boolean canSend = stringRedisTemplate.opsForValue().setIfAbsent(
                 LOGIN_CODE_SEND_KEY + phone,
                 "1",
@@ -62,27 +62,39 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         }
 
         try {
+            // 组装阿里云短信请求参数
             SendSmsVerifyCodeRequest request = new SendSmsVerifyCodeRequest()
+                    // 1. 国家码，中国固定86
                     .setCountryCode("86")
+                    // 2. 接收短信的用户手机号（前端传过来的phone）
                     .setPhoneNumber(phone)
+                    // 3. 短信签名，阿里云短信平台申请的签名名称，配置在yml
                     .setSignName(aliPnvsConfig.getSignName())
+                    // 4. 短信模板ID，阿里云后台创建的验证码模板编号
                     .setTemplateCode(aliPnvsConfig.getTemplateCode())
-                    // 使用阿里云生成验证码，参数与 OpenAPI 调试台保持一致。
+                    // 5. 模板变量参数，短信模板里有占位符##code##，用来填充验证码
                     .setTemplateParam("{\"code\":\"##code##\",\"min\":\"2\"}")
+                    // 6. 验证码长度：6位数字
                     .setCodeLength(6L)
+                    // 7. 验证码类型 1=纯数字（固定规则）
                     .setCodeType(1L)
+                    // 8. 让阿里云接口把生成的验证码返回，方便存入Redis
                     .setReturnVerifyCode(true)
+                    // 9. 阿里云侧验证码有效时长（和本地Redis缓存过期时间保持一致）
                     .setValidTime(aliPnvsConfig.getValidTimeSeconds().longValue())
+                    // 10. 阿里云侧同一号码发送间隔限制（防刷，和本地Redis限流双重防护）
                     .setInterval(aliPnvsConfig.getSendIntervalSeconds().longValue())
+                    // 11. 重复发送策略 1=重新生成新验证码
                     .setDuplicatePolicy(1L)
+                    // 12. 发送失败自动重试开关 1=开启自动重试
                     .setAutoRetry(1L);
-
+            // 调用阿里云短信接口发送验证码
             SendSmsVerifyCodeResponse response = dypnsClient.sendSmsVerifyCode(request);
             SendSmsVerifyCodeResponseBody body = response == null ? null : response.getBody();
             if (body == null || !Boolean.TRUE.equals(body.getSuccess()) || !"OK".equals(body.getCode())) {
                 return handleSendFailure(phone, body);
             }
-
+            // 提取阿里云返回的验证码，存入 Redis
             SendSmsVerifyCodeResponseBodyModel model = body.getModel();
             String verifyCode = model == null ? null : model.getVerifyCode();
             if (!StringUtils.hasText(verifyCode)) {
@@ -90,7 +102,6 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
                 log.error("阿里云返回发送成功，但未返回验证码，requestId={}", getRequestId(body));
                 return Result.fail("短信服务返回数据异常");
             }
-
             stringRedisTemplate.opsForValue().set(
                     LOGIN_CODE_KEY + phone,
                     verifyCode,

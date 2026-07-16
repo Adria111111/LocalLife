@@ -13,9 +13,10 @@ import javax.annotation.Resource;
 
 /**
  * <p>
- * 前端控制器
+ * 接口控制器 / 请求控制器
  * </p>
  */
+
 @RestController
 @RequestMapping("/shop")
 public class ShopController {

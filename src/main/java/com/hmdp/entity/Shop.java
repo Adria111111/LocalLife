@@ -116,6 +116,6 @@ public class Shop implements Serializable {
      */
     private LocalDateTime updateTime;
 
-    @TableField(exist = false)
-    private Double distance;
+    @TableField(exist = false) // 标记：数据库不存在该字段
+    private Double distance; // 临时存放距离，只给前端返回用
 }

@@ -1,5 +1,6 @@
 ﻿-- LocalLife POI upgrade script.
 -- Run this after the original hmdp.sql when upgrading the teaching dataset.
+-- 高德地图 POI 功能升级，给商铺加地图字段、索引、测试商铺数据
 
 ALTER TABLE `tb_shop`
     ADD COLUMN `phone` varchar(64) NULL DEFAULT NULL COMMENT '联系电话' AFTER `address`,
