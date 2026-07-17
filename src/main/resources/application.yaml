@@ -18,6 +18,33 @@ spring:
         max-idle: 10
         min-idle: 1
         time-between-eviction-runs: 10s
+  rabbitmq:
+    # RabbitMQ 连接信息使用环境变量覆盖，避免把真实密码提交到 GitHub
+    host: ${RABBITMQ_HOST:127.0.0.1}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:guest}
+    password: ${RABBITMQ_PASSWORD:guest}
+
+    # correlated：生产者可以知道某条消息是否被 RabbitMQ Broker 接收
+    publisher-confirm-type: correlated
+
+    # 消息到达交换机却找不到队列时，把消息退回生产者
+    publisher-returns: true
+    template:
+      mandatory: true
+
+    listener:
+      simple:
+        # 消费方法正常结束才自动 ACK；抛异常则视为消费失败
+        acknowledge-mode: auto
+        # 消费失败先重试 3 次，仍失败再进入死信队列
+        retry:
+          enabled: true
+          max-attempts: 3
+          initial-interval: 1s
+          multiplier: 2
+          max-interval: 5s
+        default-requeue-rejected: false
   jackson:
     default-property-inclusion: non_null
 
