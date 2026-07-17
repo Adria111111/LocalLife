@@ -23,6 +23,9 @@ public class RedisConstants {
     /** 秒杀券已经下单的用户集合前缀。最终格式示例：seckill:order:{1} */
     public static final String SECKILL_ORDER_KEY = "seckill:order:";
 
+    /** RabbitMQ 消费端的一人一单分布式锁前缀。 */
+    public static final String SECKILL_ORDER_LOCK_KEY = "lock:seckill:order:";
+
     /**
      * 生成某张秒杀券的 Redis 库存 Key。
      * 大括号是 Redis Cluster 的 hash tag，可以保证库存 Key 和用户集合 Key 落在同一个槽位，
@@ -35,6 +38,14 @@ public class RedisConstants {
     /** 生成某张秒杀券的“已下单用户集合”Key。 */
     public static String seckillOrderKey(Long voucherId) {
         return SECKILL_ORDER_KEY + "{" + voucherId + "}";
+    }
+
+    /**
+     * 生成“一位用户购买一张优惠券”的锁 Key。
+     * 锁的范围只覆盖同一用户和同一优惠券，不同用户之间仍然可以并行创建订单。
+     */
+    public static String seckillOrderLockKey(Long voucherId, Long userId) {
+        return SECKILL_ORDER_LOCK_KEY + "{" + voucherId + "}:" + userId;
     }
     public static final String BLOG_LIKED_KEY = "blog:liked:";
     public static final String FEED_KEY = "feed:";
