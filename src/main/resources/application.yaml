@@ -58,6 +58,19 @@ aliyun:
     template-code: ${ALIYUN_PNVS_TEMPLATE_CODE:100001}
     valid-time-seconds: 120
     send-interval-seconds: 60
+  bailian:
+    # 百炼 API Key 与短信 AccessKey 不是同一种密钥，只能通过环境变量注入，禁止写进代码库
+    api-key: ${DASHSCOPE_API_KEY:}
+    # 使用阿里云百炼华北 2（北京）的 OpenAI 兼容接口；其他地域可通过环境变量覆盖
+    base-url: ${DASHSCOPE_BASE_URL:https://dashscope.aliyuncs.com/compatible-mode/v1}
+    model-name: ${DASHSCOPE_MODEL_NAME:qwen-plus}
+    temperature: 0.3
+    timeout-seconds: 30
+    max-retries: 2
+    # Redis 只保存最近若干条消息，并自动过期，避免对话历史和 Token 无限增长
+    max-history-messages: 10
+    memory-ttl-minutes: 30
+    max-message-length: 1000
 
 shop:
   # 附近商户搜索半径（米）

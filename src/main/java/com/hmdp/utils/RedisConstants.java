@@ -53,6 +53,20 @@ public class RedisConstants {
     public static String seckillOrderLockKey(Long voucherId, Long userId) {
         return SECKILL_ORDER_LOCK_KEY + "{" + voucherId + "}:" + userId;
     }
+
+    /** AI 客服多轮会话历史前缀，完整 Key 会继续拼接用户 ID 和会话 ID。 */
+    public static final String AI_CHAT_MEMORY_KEY = "ai:chat:memory:";
+
+    /** 同一个 AI 会话的分布式锁前缀，避免并发提问把对话顺序写乱。 */
+    public static final String AI_CHAT_LOCK_KEY = "lock:ai:chat:";
+
+    public static String aiChatMemoryKey(Long userId, String conversationId) {
+        return AI_CHAT_MEMORY_KEY + "{" + userId + "}:" + conversationId;
+    }
+
+    public static String aiChatLockKey(Long userId, String conversationId) {
+        return AI_CHAT_LOCK_KEY + "{" + userId + "}:" + conversationId;
+    }
     public static final String BLOG_LIKED_KEY = "blog:liked:";
     public static final String FEED_KEY = "feed:";
     public static final String SHOP_GEO_KEY = "shop:geo:";
