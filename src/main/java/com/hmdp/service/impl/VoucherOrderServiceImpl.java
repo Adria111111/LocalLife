@@ -37,7 +37,9 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
     private static final DefaultRedisScript<Long> SECKILL_SCRIPT;
 
     /** 数据库下单失败时，用来撤销 Redis 预扣结果的补偿脚本。 */
-    private static final DefaultRedisScript<Long> SECKILL_ROLLBACK_SCRIPT;
+    private static final DefaultRedisScript<Long>
+
+            SECKILL_ROLLBACK_SCRIPT;
 
     static {
         // 加载resources下seckill.lua抢购脚本

@@ -12,6 +12,8 @@ import org.springframework.util.StringUtils;
 /**
  * Redisson 客户端配置。
  * Redisson 与 StringRedisTemplate 连接同一个 Redis，但 Redisson 额外提供了分布式锁等高级功能。
+ * Redisson是基于Redis实现的分布式锁框架，Redis所有服务器都能访问。而Java锁只能锁一个JVM，锁不了其他服务器。
+ * 悲观锁认为：别人一定会来抢，所以先锁，再干活。乐观锁认为：别人一般不会修改，所以：先不锁，最后更新的时候检查一下。
  */
 @Configuration
 public class RedissonConfig {

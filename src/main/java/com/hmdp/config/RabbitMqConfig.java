@@ -16,12 +16,17 @@ import org.springframework.context.annotation.Configuration;
  * RabbitMQ 拓扑配置，创建交换机、队列和绑定关系
  * 拓扑可以理解为快递系统：
  * | 寄包裹的人 | Producer 生产者 |
- * | 包裹 | Message 消息 |
+ * | 包裹 | Message 消息（队列里面排的订单id和userid） |
  * | 分拣中心 | Exchange 交换机 |
  * | 快递地址 | Routing Key 路由键 |
  * | 等待取件的货架 | Queue 队列 |
  * | 取走并处理包裹的人 | Consumer 消费者 |
  * | 分拣说明书 | Binding 绑定关系（交换机-路由键-队列） |
+ * | 快递公司总部（顺丰、京东物流） | Broker RabbitMQ服务器（RabbitMQ 服务器，负责管理消息生命周期，包括接收、路由、存储、投递、ACK 确认、重试、死信等） |
+ * Producer 并不是直接把消息发送给 Queue，
+ * 而是先发送到 Broker，由 Broker 内部的 Exchange
+ * 根据 Routing Key 和 Binding 将消息路由到对应 Queue，
+ * 最终由 Consumer 消费。
  */
 @Configuration
 public class RabbitMqConfig {
