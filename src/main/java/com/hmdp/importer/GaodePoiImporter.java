@@ -1,6 +1,7 @@
 package com.hmdp.importer;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.hmdp.cache.ShopBloomFilter;
 import com.hmdp.entity.Shop;
 import com.hmdp.mapper.ShopMapper;
 import org.springframework.stereotype.Component;
@@ -29,10 +30,15 @@ public class GaodePoiImporter {
     // 只声明依赖，不手动new
     private final GaodeApiClient apiClient;
     private final ShopMapper shopMapper;
+    private final ShopBloomFilter shopBloomFilter;
 
-    public GaodePoiImporter(GaodeApiClient apiClient, ShopMapper shopMapper) {
+    public GaodePoiImporter(
+            GaodeApiClient apiClient,
+            ShopMapper shopMapper,
+            ShopBloomFilter shopBloomFilter) {
         this.apiClient = apiClient;
         this.shopMapper = shopMapper;
+        this.shopBloomFilter = shopBloomFilter;
     }
 
     public void importByType(String gaodeTypeCode, Long shopTypeId) {
@@ -80,6 +86,10 @@ public class GaodePoiImporter {
                         shop.setId(old.getId());
                         shopMapper.updateById(shop);
                     }
+
+                    // POI 导入直接使用 Mapper，绕过了 ShopService，因此这里必须同步新商户 ID。
+                    // add 是幂等操作，更新已有商户时重复添加同一个 ID 不会造成业务问题。
+                    shopBloomFilter.add(shop.getId());
                 }
             }
         }

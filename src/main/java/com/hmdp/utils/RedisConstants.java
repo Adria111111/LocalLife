@@ -14,6 +14,12 @@ public class RedisConstants {
     public static final String CACHE_SHOP_KEY = "cache:shop:";
     public static final String CACHE_SHOP_TYPE_KEY = "cache:shop:type:list";
 
+    /** 商户更新后广播一级缓存失效通知的 Redis Pub/Sub 频道。 */
+    public static final String CACHE_SHOP_INVALIDATE_CHANNEL = "cache:shop:invalidate";
+
+    /** 保存全部有效商户 ID 的 Redisson 布隆过滤器名称。v1 方便将来调整参数后平滑升级。 */
+    public static final String SHOP_BLOOM_FILTER_KEY = "bloom:shop:id:v1";
+
     public static final String LOCK_SHOP_KEY = "lock:shop:";
     public static final Long LOCK_SHOP_TTL = 10L;
 

@@ -21,6 +21,12 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-data-redis</artifactId>
         </dependency>
+        <!-- Caffeine：作为商户详情的一级本地缓存，减少访问 Redis 的网络开销 -->
+        <dependency>
+            <groupId>com.github.ben-manes.caffeine</groupId>
+            <artifactId>caffeine</artifactId>
+            <version>2.9.3</version>
+        </dependency>
         <!-- Redisson：提供可重入分布式锁，保护 RabbitMQ 消费端的一人一单数据库操作 -->
         <dependency>
             <groupId>org.redisson</groupId>

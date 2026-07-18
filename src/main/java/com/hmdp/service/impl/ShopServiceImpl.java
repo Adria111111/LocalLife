@@ -5,6 +5,8 @@ import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.github.benmanes.caffeine.cache.Cache;
+import com.hmdp.cache.ShopBloomFilter;
 import com.hmdp.dto.Result;
 import com.hmdp.entity.Shop;
 import com.hmdp.mapper.ShopMapper;
@@ -20,6 +22,8 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import javax.annotation.Resource;
 import java.util.ArrayList;
@@ -39,9 +43,29 @@ import static com.hmdp.utils.RedisConstants.*;
  */
 @Service
 public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements IShopService {
+    /* Caffeine 是运行在当前 JVM 内存中的本地缓存，主要用于缓存热点商户，命中后不需要访问 Redis，因此可以降低网络开销和 Redis QPS。
+     * 但它不能在多个应用实例间共享，所以更新时需要结合 Redis Pub/Sub 通知其他实例清理各自的本地缓存。
+     *
+     * Redis 互斥锁和 Redis 分布式锁并不是完全不同的概念：
+     * 互斥锁强调同一时刻只有一个执行者，分布式锁强调它能够在多个 JVM 或应用实例之间生效。
+     * Redisson 分布式锁则是 Redisson 对 Redis 分布式锁的成熟封装，它提供了可重入、原子解锁、线程标识和看门狗自动续期等能力。
+     * 项目中缓存重建逻辑简单，使用手写 Redis 互斥锁（锁粒度：shopid，同一个商户缓存的重建过程必须互斥：商户 1 重建缓存时，不应该阻止商户 2 查询数据库。）；
+     * 秒杀一人一单对正确性要求更高，因此使用 Redisson 分布式锁（锁粒度：用户id+voucherid，一人一单的请求必须互斥，有一个不同的订单必须并行）。
+     *
+     * Bloom Filter：一个利用多个Hash函数组成的大位数组
+     * false一定准确：多次hash之后有一个是0说明：这个ID以前绝对没有加入过。
+     * 又存在误判：多次hash之后的结果刚好都已经因为别人变成1了，所以这个ID被判为可能被加入过，但其实没有。
+     */
 
     @Resource
     private StringRedisTemplate stringRedisTemplate;
+
+    /** 商户详情的一级本地缓存；Redis 是多个应用实例共享的二级缓存。 */
+    @Resource(name = "shopLocalCache")
+    private Cache<Long, Shop> shopLocalCache;
+
+    @Resource
+    private ShopBloomFilter shopBloomFilter;
 
     @Value("${shop.nearby-radius-meters:15000}")
     private double nearbyShopRadiusMeters;
@@ -56,6 +80,21 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements IS
      */
     @Override
     public Result queryById(Long id) {
+        /*
+         * 1. 布隆过滤器返回 false 代表这个 ID 一定没有被加入，可以直接拦截恶意或无效 ID。
+         * 返回 true 只表示“可能存在”，仍要继续查询缓存和数据库确认。
+         */
+        if (shopBloomFilter.isDefinitelyAbsent(id)) {
+            return Result.fail("店铺不存在");
+        }
+
+        // 2. 再查 Caffeine 本地内存，不需要网络请求，速度比 Redis 更快。
+        Shop localShop = shopLocalCache.getIfPresent(id);
+        if (localShop != null) {
+            return Result.ok(localShop);
+        }
+
+        // 3. 一级缓存未命中，再查询 Redis；Redis 未命中时才会通过互斥锁查询 MySQL。
         Shop shop;
         try {
             shop = queryWithMutex(id);
@@ -67,7 +106,29 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements IS
         if (shop == null) {
             return Result.fail("店铺不存在");
         }
+
+        // 4. Redis 或 MySQL 查询成功后回填一级缓存，后续热点请求可以直接读取本机内存。
+        shopLocalCache.put(id, shop);
         return Result.ok(shop);
+    }
+
+    /**
+     * 新增商户后同步布隆过滤器。
+     * 必须等数据库事务提交成功再添加 ID，避免数据库回滚但布隆过滤器仍误以为商户存在。
+     */
+    @Override
+    @Transactional
+    public boolean save(Shop shop) {
+        boolean saved = super.save(shop);
+        if (saved) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    shopBloomFilter.add(shop.getId());
+                }
+            });
+        }
+        return saved;
     }
 
     public Shop queryWithMutex(Long id) throws InterruptedException {
@@ -221,7 +282,29 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements IS
             return Result.fail("店铺id不能为空");
         }
         updateById(shop);
-        stringRedisTemplate.delete(CACHE_SHOP_KEY + id);
+
+        /*
+         * 当前方法有 @Transactional，数据库要在方法结束后才真正提交。
+         * 因此把两层缓存删除放到 afterCommit，避免事务尚未提交时其他请求查到旧数据并重新写入缓存。
+         *
+         * redis订阅发布机制：
+         * 应用实例 A 更新商户->数据库事务提交成功->A 删除 Redis 缓存->A 删除自己的 Caffeine--
+         * ->A 向 Redis Channel 发布商户 id->B、C 收到消息->B、C 删除各自 Caffeine 中的商户
+         */
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                // 先删除所有应用实例共享的 Redis 二级缓存，下一次查询才能读取数据库新值。
+                stringRedisTemplate.delete(CACHE_SHOP_KEY + id);
+
+                // 当前实例立即删除一级缓存，不必等待自己收到 Redis 广播。
+                shopLocalCache.invalidate(id);
+
+                // 通知其他应用实例删除各自的 Caffeine 一级缓存，避免多实例之间长时间读取旧数据。
+                // Redis Pub/Sub 消息的发布者：向 SHOP_CACHE_INVALIDATE_CHANNEL 频道发布 shopId，通知其他实例删除缓存
+                stringRedisTemplate.convertAndSend(CACHE_SHOP_INVALIDATE_CHANNEL, id.toString());
+            }
+        });
         return Result.ok();
     }
 }
